@@ -269,7 +269,7 @@ Return this exact JSON:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.4, maxOutputTokens: 2000 },
+          generationConfig: { temperature: 0.1, maxOutputTokens: 10000 },
         }),
       });
       if (!res.ok) {
