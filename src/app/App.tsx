@@ -399,7 +399,7 @@ Return this exact JSON structure:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.2, maxOutputTokens: 4000 },
+          generationConfig: { temperature: 0.2, maxOutputTokens: 10000 },
         }),
       });
       if (!res.ok) {
