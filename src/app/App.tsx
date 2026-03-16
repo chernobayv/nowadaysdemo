@@ -1,52 +1,25 @@
 import { useState, useEffect } from 'react';
 
-// Fixed: replaced figma:asset with real URL
 const imgImage4 = "https://www.nowadays.ai/_next/static/media/nowadays-icon.5c8c330e.png";
 
-// Gemini key from Vercel environment variable
 const GEMINI_KEY = import.meta.env.VITE_GEMINI_KEY as string;
 const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
 const eventTypeOptions = [
-  "Team Offsite",
-  "Exec Dinner",
-  "All-Hands",
-  "Product Launch",
-  "Sales Kickoff",
-  "Leadership Retreat",
-  "Holiday Party",
-  "Team Building",
-  "Client Event",
-  "Conference",
-  "Workshop",
-  "Training Session",
-  "Networking Event",
-  "Awards Ceremony",
-  "Quarterly Review"
+  "Team Offsite", "Exec Dinner", "All-Hands", "Product Launch", "Sales Kickoff",
+  "Leadership Retreat", "Holiday Party", "Team Building", "Client Event", "Conference",
+  "Workshop", "Training Session", "Networking Event", "Awards Ceremony", "Quarterly Review"
 ];
 
 const guestTypeOptions = [
-  "Internal team",
-  "Executive leadership",
-  "Clients & partners",
-  "Board members",
-  "Investors",
-  "Vendors & suppliers",
-  "Industry peers",
-  "Media & press",
-  "Job candidates",
-  "Alumni & former employees",
-  "Cross-functional teams",
-  "External consultants"
+  "Internal team", "Executive leadership", "Clients & partners", "Board members", "Investors",
+  "Vendors & suppliers", "Industry peers", "Media & press", "Job candidates",
+  "Alumni & former employees", "Cross-functional teams", "External consultants"
 ];
 
-// Load jsPDF from CDN — no npm install needed
 function loadJsPDF(): Promise<any> {
   return new Promise((resolve, reject) => {
-    if ((window as any).jspdf) {
-      resolve((window as any).jspdf.jsPDF);
-      return;
-    }
+    if ((window as any).jspdf) { resolve((window as any).jspdf.jsPDF); return; }
     const script = document.createElement("script");
     script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
     script.onload = () => resolve((window as any).jspdf.jsPDF);
@@ -79,7 +52,7 @@ async function buildPDF(m: any, eventType: string, guestType: string, budget: st
   const lightGray: [number, number, number] = [249, 250, 251];
   const borderGray: [number, number, number] = [229, 231, 235];
 
-  // Header bar
+  // ── Header bar ──────────────────────────────────────────────────────────────
   doc.setFillColor(...purple);
   doc.rect(0, 0, W, 24, "F");
   doc.setTextColor(...white);
@@ -88,17 +61,20 @@ async function buildPDF(m: any, eventType: string, guestType: string, budget: st
   doc.text("nowadays", mg, 15);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
-  doc.text("Event Approval Planner", mg + 30, 15);
+  doc.text("Event Approval Planner — Demo", mg + 30, 15);
   const today = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
   doc.text(today, W - mg, 15, { align: "right" });
   y = 36;
 
-  // Title
+  // ── Title ───────────────────────────────────────────────────────────────────
   doc.setTextColor(...ink);
   doc.setFontSize(19);
   doc.setFont("helvetica", "bold");
-  doc.text(m.eventTitle || "Event Approval Memo", mg, y);
-  y += 7;
+  // Wrap long titles
+  const titleLines = doc.splitTextToSize(m.eventTitle || "Event Approval Memo", cW);
+  doc.text(titleLines, mg, y);
+  y += titleLines.length * 7;
+
   doc.setFontSize(9.5);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...mid);
@@ -109,7 +85,7 @@ async function buildPDF(m: any, eventType: string, guestType: string, budget: st
   doc.line(mg, y, W - mg, y);
   y += 9;
 
-  // Metric cards
+  // ── Metric cards ────────────────────────────────────────────────────────────
   const mW = (cW - 9) / 4;
   [
     { label: "Budget", val: `$${budget}` },
@@ -129,10 +105,13 @@ async function buildPDF(m: any, eventType: string, guestType: string, budget: st
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...ink);
-    doc.text(c.val.length > 17 ? c.val.slice(0, 15) + "…" : c.val, x + mW / 2, y + 12.5, { align: "center" });
+    // Wrap metric value if too long
+    const valLines = doc.splitTextToSize(c.val, mW - 4);
+    doc.text(valLines[0] || c.val, x + mW / 2, y + 12.5, { align: "center" });
   });
   y += 24;
 
+  // ── Section helper (full wrapping) ──────────────────────────────────────────
   function section(title: string, body: string) {
     if (y > 252) { doc.addPage(); y = 22; }
     doc.setFontSize(8);
@@ -147,10 +126,11 @@ async function buildPDF(m: any, eventType: string, guestType: string, budget: st
     doc.setFontSize(9.5);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(...mid);
-    doc.splitTextToSize(body, cW).forEach((l: string) => {
+    const lines = doc.splitTextToSize(body, cW);
+    lines.forEach((l: string) => {
       if (y > 272) { doc.addPage(); y = 22; }
       doc.text(l, mg, y);
-      y += 5.2;
+      y += 5.5;
     });
     y += 5;
   }
@@ -159,58 +139,104 @@ async function buildPDF(m: any, eventType: string, guestType: string, budget: st
   section("Business Case & ROI", m.businessCase || "");
   section("Goals & Purpose", goals);
 
-  // Budget breakdown table
+  // ── Budget breakdown table (with wrapping notes) ─────────────────────────
   if (y > 195) { doc.addPage(); y = 22; }
   doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(...purple);
   doc.text("BUDGET BREAKDOWN", mg, y); y += 4;
   doc.setDrawColor(...purple); doc.setLineWidth(0.35);
   doc.line(mg, y, mg + 28, y); y += 6;
+
+  // Table header
   doc.setFillColor(...purple); doc.rect(mg, y, cW, 7.5, "F");
   doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(...white);
   doc.text("Category", mg + 3, y + 5);
-  doc.text("Estimate", mg + 90, y + 5);
-  doc.text("Notes", mg + 125, y + 5);
+  doc.text("Estimate", mg + 85, y + 5);
+  doc.text("Notes", mg + 118, y + 5);
   y += 7.5;
 
+  const colCat = 55;
+  const colEst = 28;
+  const colNotes = cW - colCat - colEst - 6;
+
   (m.breakdown || []).forEach((row: any, i: number) => {
-    if (y > 272) { doc.addPage(); y = 22; }
+    if (y > 265) { doc.addPage(); y = 22; }
+
+    // Pre-calculate wrapped lines to get row height
+    doc.setFontSize(8.5);
+    const catLines = doc.splitTextToSize(row.category || "", colCat);
+    const estLines = doc.splitTextToSize(row.estimate || "", colEst);
+    const noteLines = doc.splitTextToSize(row.notes || "", colNotes);
+    const maxLines = Math.max(catLines.length, estLines.length, noteLines.length);
+    const rowH = Math.max(7, maxLines * 5 + 4);
+
     doc.setFillColor(i % 2 === 0 ? 249 : 244, i % 2 === 0 ? 250 : 246, i % 2 === 0 ? 251 : 253);
-    doc.rect(mg, y, cW, 7, "F");
-    doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...ink);
-    doc.text(row.category || "", mg + 3, y + 4.8);
+    doc.rect(mg, y, cW, rowH, "F");
+
+    doc.setFont("helvetica", "normal"); doc.setTextColor(...ink);
+    doc.text(catLines, mg + 3, y + 5);
+
     doc.setFont("helvetica", "bold"); doc.setTextColor(...purple);
-    doc.text(row.estimate || "", mg + 90, y + 4.8);
+    doc.text(estLines, mg + 85, y + 5);
+
     doc.setFont("helvetica", "normal"); doc.setTextColor(...mid);
-    doc.text((row.notes || "").length > 36 ? (row.notes || "").slice(0, 34) + "…" : row.notes || "", mg + 125, y + 4.8);
-    y += 7;
+    doc.text(noteLines, mg + 118, y + 5);
+
+    y += rowH;
   });
   y += 7;
 
   section("Recommendation & Next Steps", m.recommendation || "");
-  section("Why Nowadays", m.nowadaysValue || "Nowadays handles all venue sourcing, negotiations, and vendor management — saving your team weeks of back-and-forth. Our IATA-certified platform typically saves clients 15–20% on total event costs through exclusive partnerships and automated negotiation.");
+  section("Why Nowadays", m.nowadaysValue || "Nowadays handles all venue sourcing, negotiations, and vendor management — saving your team weeks of back-and-forth. Our platform typically saves clients 15–20% on total event costs through exclusive partnerships and smart negotiation.");
 
+  // ── City recommendation box ──────────────────────────────────────────────
   if (m.cityReason && m.recommendedCity) {
     if (y > 255) { doc.addPage(); y = 22; }
-    doc.setFillColor(...purpleLight); doc.setDrawColor(...purple); doc.setLineWidth(0.4);
-    const cityLines = doc.splitTextToSize(m.cityReason, cW - 10);
-    const cityBoxH = 10 + cityLines.length * 5.5;
-    doc.roundedRect(mg, y, cW, 15, 3, 3, "FD");
-    doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(...purple);
+
+    doc.setFontSize(8.5);
+    const cityReasonLines = doc.splitTextToSize(m.cityReason, cW - 12);
+    const cityBoxH = 10 + cityReasonLines.length * 5.5;
+
+    doc.setFillColor(...purpleLight);
+    doc.setDrawColor(...purple);
+    doc.setLineWidth(0.4);
+    doc.roundedRect(mg, y, cW, cityBoxH, 3, 3, "FD");
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...purple);
     doc.text(`Recommended destination: ${m.recommendedCity}`, mg + 5, y + 6.5);
-    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(...mid);
-    const cityLines = doc.splitTextToSize(m.cityReason, cW - 10);
-    doc.text(cityLines, mg + 5, y + 11.5);
-    y += 21;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(...mid);
+    doc.text(cityReasonLines, mg + 5, y + 12);
+
+    y += cityBoxH + 5;
   }
 
-  // Footer on every page
+  // ── Disclaimer ────────────────────────────────────────────────────────────
+  if (y > 265) { doc.addPage(); y = 22; }
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(...muted);
+  const disclaimer = "This document was generated as a planning aid and cost estimates are approximate. Final pricing will vary based on vendor availability, location, and negotiated rates. All figures should be verified with Nowadays prior to formal budget approval.";
+  const discLines = doc.splitTextToSize(disclaimer, cW);
+  discLines.forEach((l: string) => {
+    if (y > 278) { doc.addPage(); y = 22; }
+    doc.text(l, mg, y);
+    y += 4.5;
+  });
+
+  // ── Footer on every page ─────────────────────────────────────────────────
   const pages = doc.internal.getNumberOfPages();
   for (let i = 1; i <= pages; i++) {
     doc.setPage(i);
     doc.setFillColor(245, 244, 255);
     doc.rect(0, 284, W, 13, "F");
-    doc.setFontSize(7.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...muted);
-    doc.text("Generated by Nowadays · nowadays.ai", mg, 292);
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...muted);
+    doc.text("Prepared using Nowadays Event Approval Planner · nowadays.ai", mg, 292);
     doc.text(`Page ${i} of ${pages}`, W - mg, 292, { align: "right" });
   }
 
@@ -227,7 +253,6 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Preload jsPDF so first click is instant
   useEffect(() => { loadJsPDF().catch(() => {}); }, []);
 
   async function handleOpenPDF() {
@@ -237,33 +262,33 @@ export default function App() {
     setLoading(true);
     setError("");
 
-    const prompt = `You are a corporate event planning expert at Nowadays which is a b2b travel planning company. Generate a professional executive approval memo. Return ONLY valid JSON, no markdown. Make sure to make it convincing and include keywords that would make an exec want to invest in this trip. Make sure to fill wither 1 page or two pages, no moew. fill it exactly or mostly to make it look professional.
+    const prompt = `You are a corporate event planning expert. Generate a professional executive approval memo that would convince a CFO or exec to approve this event budget. Be persuasive, specific, and data-driven. Return ONLY valid JSON, no markdown, no extra text.
 
 Event Type: ${eventType}
 Guest Type: ${guestType || "Internal team"}
 Budget: $${budget}
 Goals: ${goals}
 
-Return this exact JSON:
+Return this exact JSON structure:
 {
-  "eventTitle": "descriptive event title",
-  "suggestedDate": "recommended timeframe e.g. September 2025",
-  "estimatedTotal": "cost range e.g. $74,000 – $82,000",
+  "eventTitle": "specific descriptive title e.g. Q3 Leadership Alignment Offsite",
+  "suggestedDate": "specific recommended timeframe e.g. September 15–18, 2025",
+  "estimatedTotal": "realistic cost range e.g. $74,000 – $82,000",
   "costPerPerson": "per person range e.g. $2,100 – $2,350",
-  "recommendedCity": "best city name",
-  "cityReason": "one sentence why this city fits",
-  "breakdown": 
-    {"category": "Accommodation", "estimate": "string", "notes": "<1 sentance brief note"},
-    {"category": "Venue & Meeting Rooms", "estimate": "string", "notes": "<1 sentance brief note"},
-    {"category": "Food & Beverage", "estimate": "string", "notes": "<1 sentance brief note"},
-    {"category": "Activities & Team Building", "estimate": "string", "notes": "<1 sentance brief note"},
-    {"category": "Travel & Transport", "estimate": "string", "notes": "<1 sentance brief note"},
-    {"category": "Contingency (10%)", "estimate": "string", "notes": "<1 sentance brief note"}
+  "recommendedCity": "specific best city",
+  "cityReason": "one compelling sentence explaining why this city is ideal for this event type and group",
+  "breakdown": [
+    {"category": "Accommodation", "estimate": "$X,XXX – $X,XXX", "notes": "one brief sentence"},
+    {"category": "Venue & Meeting Rooms", "estimate": "$X,XXX – $X,XXX", "notes": "one brief sentence"},
+    {"category": "Food & Beverage", "estimate": "$X,XXX – $X,XXX", "notes": "one brief sentence"},
+    {"category": "Activities & Team Building", "estimate": "$X,XXX – $X,XXX", "notes": "one brief sentence"},
+    {"category": "Travel & Transport", "estimate": "$X,XXX – $X,XXX", "notes": "one brief sentence"},
+    {"category": "Contingency (10%)", "estimate": "$X,XXX", "notes": "one brief sentence"}
   ],
-  "executiveSummary": "3-4 sentences: what the event is, who attends, why it matters",
-  "businessCase": "3-4 sentences: ROI, retention, productivity, team cohesion stats",
-  "recommendation": "2-3 sentences: approval ask, next steps, timeline",
-  "nowadaysValue": "2 sentences: how Nowadays saves time and money on this event"
+  "executiveSummary": "3-4 persuasive sentences covering what the event is, who attends, the strategic importance, and expected outcomes.",
+  "businessCase": "3-4 sentences with specific ROI framing: cite research where possible (e.g. Gallup, McKinsey) on team engagement, retention savings, and productivity gains from in-person collaboration.",
+  "recommendation": "2-3 clear sentences: state the approval ask, outline immediate next steps if approved, and note the planning timeline.",
+  "nowadaysValue": "2 sentences on how using Nowadays for sourcing and negotiation saves time and reduces costs versus planning independently."
 }`;
 
     try {
@@ -272,7 +297,7 @@ Return this exact JSON:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 10000 },
+          generationConfig: { temperature: 0.2, maxOutputTokens: 4000 },
         }),
       });
       if (!res.ok) {
@@ -292,7 +317,7 @@ Return this exact JSON:
   return (
     <div className="relative size-full overflow-auto" style={{ fontFamily: 'Inter, sans-serif' }}>
 
-      {/* Background gradient */}
+      {/* Background */}
       <div className="absolute inset-0 -z-10">
         <svg className="absolute block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 1527 1440">
           <defs>
@@ -306,7 +331,7 @@ Return this exact JSON:
         </svg>
       </div>
 
-      {/* Title Bar */}
+      {/* Nav */}
       <div className="relative bg-[#fdfcfe] h-[69px] border-b border-gray-100">
         <div className="flex items-center h-full px-[30px]">
           <img alt="nowadays logo" className="size-[45px] object-cover" src={imgImage4} />
@@ -330,65 +355,48 @@ Return this exact JSON:
       {/* Form Card */}
       <div className="relative mx-auto mt-[62px] mb-[100px] w-full max-w-[1193px] px-4">
         <div className="bg-white border border-[#d1d5db] rounded-[20px] p-[68px_68px_54px_68px] shadow-sm">
-          <h2 className="text-[20px] font-medium text-black tracking-[-0.8px] mb-[43px]">
-            Event Details
-          </h2>
+          <h2 className="text-[20px] font-medium text-black tracking-[-0.8px] mb-[43px]">Event Details</h2>
 
           <div className="space-y-[43px]">
 
             {/* Event Type + Guest Type */}
             <div className="grid grid-cols-2 gap-[69px]">
-
-              {/* Event Type */}
               <div className="relative">
                 <label className="block text-[16px] text-[#1e1e1e] tracking-[-0.64px] mb-[10px]">Event Type</label>
                 <div className="relative">
-                  <button
-                    onClick={() => { setEventTypeOpen(!eventTypeOpen); setGuestTypeOpen(false); }}
-                    className="w-full h-[46px] px-4 bg-white border border-[#d1d5db] rounded-[10px] text-left text-[16px] text-[#1e1e1e] flex items-center justify-between hover:border-[#b5b5b5] transition-colors"
-                  >
-                    <span className={eventType ? 'text-[#1e1e1e]' : 'text-[#9ca3af]'}>
-                      {eventType || 'Select event type'}
-                    </span>
+                  <button onClick={() => { setEventTypeOpen(!eventTypeOpen); setGuestTypeOpen(false); }}
+                    className="w-full h-[46px] px-4 bg-white border border-[#d1d5db] rounded-[10px] text-left text-[16px] flex items-center justify-between hover:border-[#b5b5b5] transition-colors">
+                    <span className={eventType ? 'text-[#1e1e1e]' : 'text-[#9ca3af]'}>{eventType || 'Select event type'}</span>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className={`transition-transform flex-shrink-0 ${eventTypeOpen ? 'rotate-180' : ''}`}>
                       <path d="M7 10L12 15L17 10" stroke="#1e1e1e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </button>
                   {eventTypeOpen && (
                     <div className="absolute z-50 mt-2 w-full bg-white border border-[#d1d5db] rounded-[10px] shadow-lg max-h-[300px] overflow-auto">
-                      {eventTypeOptions.map((option) => (
-                        <button key={option} onClick={() => { setEventType(option); setEventTypeOpen(false); }}
-                          className="w-full px-4 py-3 text-left text-[16px] text-[#1e1e1e] hover:bg-[#f3f4f6] transition-colors first:rounded-t-[10px] last:rounded-b-[10px]">
-                          {option}
-                        </button>
+                      {eventTypeOptions.map((o) => (
+                        <button key={o} onClick={() => { setEventType(o); setEventTypeOpen(false); }}
+                          className="w-full px-4 py-3 text-left text-[16px] text-[#1e1e1e] hover:bg-[#f3f4f6] transition-colors first:rounded-t-[10px] last:rounded-b-[10px]">{o}</button>
                       ))}
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Guest Type */}
               <div className="relative">
                 <label className="block text-[16px] text-[#1e1e1e] tracking-[-0.64px] mb-[10px]">Guest Type</label>
                 <div className="relative">
-                  <button
-                    onClick={() => { setGuestTypeOpen(!guestTypeOpen); setEventTypeOpen(false); }}
-                    className="w-full h-[46px] px-4 bg-white border border-[#d1d5db] rounded-[10px] text-left text-[16px] text-[#1e1e1e] flex items-center justify-between hover:border-[#b5b5b5] transition-colors"
-                  >
-                    <span className={guestType ? 'text-[#1e1e1e]' : 'text-[#9ca3af]'}>
-                      {guestType || 'Select guest type'}
-                    </span>
+                  <button onClick={() => { setGuestTypeOpen(!guestTypeOpen); setEventTypeOpen(false); }}
+                    className="w-full h-[46px] px-4 bg-white border border-[#d1d5db] rounded-[10px] text-left text-[16px] flex items-center justify-between hover:border-[#b5b5b5] transition-colors">
+                    <span className={guestType ? 'text-[#1e1e1e]' : 'text-[#9ca3af]'}>{guestType || 'Select guest type'}</span>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className={`transition-transform flex-shrink-0 ${guestTypeOpen ? 'rotate-180' : ''}`}>
                       <path d="M7 10L12 15L17 10" stroke="#1e1e1e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </button>
                   {guestTypeOpen && (
                     <div className="absolute z-50 mt-2 w-full bg-white border border-[#d1d5db] rounded-[10px] shadow-lg max-h-[300px] overflow-auto">
-                      {guestTypeOptions.map((option) => (
-                        <button key={option} onClick={() => { setGuestType(option); setGuestTypeOpen(false); }}
-                          className="w-full px-4 py-3 text-left text-[16px] text-[#1e1e1e] hover:bg-[#f3f4f6] transition-colors first:rounded-t-[10px] last:rounded-b-[10px]">
-                          {option}
-                        </button>
+                      {guestTypeOptions.map((o) => (
+                        <button key={o} onClick={() => { setGuestType(o); setGuestTypeOpen(false); }}
+                          className="w-full px-4 py-3 text-left text-[16px] text-[#1e1e1e] hover:bg-[#f3f4f6] transition-colors first:rounded-t-[10px] last:rounded-b-[10px]">{o}</button>
                       ))}
                     </div>
                   )}
@@ -402,13 +410,8 @@ Return this exact JSON:
               <div className="flex items-center gap-[24px]">
                 <div className="relative flex-shrink-0 w-[445px]">
                   <span className="absolute left-[14px] top-1/2 -translate-y-1/2 text-[16px] text-[#1e1e1e] font-medium pointer-events-none">$</span>
-                  <input
-                    type="text"
-                    value={budget}
-                    onChange={(e) => setBudget(e.target.value.replace(/[^0-9,]/g, ''))}
-                    placeholder="0"
-                    className="w-full h-[46px] pl-[30px] pr-4 bg-white border border-[#d1d5db] rounded-[10px] text-[16px] text-[#1e1e1e] focus:outline-none focus:border-[#5B52E7] transition-colors"
-                  />
+                  <input type="text" value={budget} onChange={(e) => setBudget(e.target.value.replace(/[^0-9,]/g, ''))} placeholder="0"
+                    className="w-full h-[46px] pl-[30px] pr-4 bg-white border border-[#d1d5db] rounded-[10px] text-[16px] text-[#1e1e1e] focus:outline-none focus:border-[#5B52E7] transition-colors" />
                 </div>
                 <a href="https://www.nowadays.ai/budget-estimator" target="_blank" rel="noopener noreferrer"
                   className="text-[16px] text-[#5B52E7] tracking-[-0.64px] underline hover:text-[#4842c7] transition-colors whitespace-nowrap">
@@ -417,53 +420,34 @@ Return this exact JSON:
               </div>
             </div>
 
-            {/* Goals & Purpose */}
+            {/* Goals */}
             <div>
               <label className="block text-[16px] text-[#1e1e1e] tracking-[-0.64px] mb-[10px]">
                 Goals & Purpose — <span className="text-[#6b7280]">Write 1-2 sentences about what you hope to achieve</span>
               </label>
-              <input
-                type="text"
-                value={goals}
-                onChange={(e) => setGoals(e.target.value)}
+              <input type="text" value={goals} onChange={(e) => setGoals(e.target.value)}
                 placeholder="e.g. Align the leadership team on Q3 strategy and strengthen cross-functional relationships."
-                className="w-full h-[46px] px-4 bg-white border border-[#d1d5db] rounded-[10px] text-[16px] text-[#1e1e1e] focus:outline-none focus:border-[#5B52E7] transition-colors"
-              />
+                className="w-full h-[46px] px-4 bg-white border border-[#d1d5db] rounded-[10px] text-[16px] text-[#1e1e1e] focus:outline-none focus:border-[#5B52E7] transition-colors" />
             </div>
           </div>
 
-          {/* Error message */}
-          {error && (
-            <p className="mt-[16px] text-[13px] text-red-600">{error}</p>
-          )}
+          {error && <p className="mt-[16px] text-[13px] text-red-600">{error}</p>}
+          {loading && <p className="mt-[16px] text-[13px] text-[#5B52E7]">Generating your exec memo, this takes about 15 seconds…</p>}
 
-          {/* Loading message */}
-          {loading && (
-            <p className="mt-[16px] text-[13px] text-[#5B52E7]">
-              Generating your exec memo, this takes about 10 seconds…
-            </p>
-          )}
-
-          {/* Submit button */}
           <div className="flex justify-end mt-[46px]">
-            <button
-              onClick={handleOpenPDF}
-              disabled={loading}
+            <button onClick={handleOpenPDF} disabled={loading}
               className={`h-[52px] px-[32px] text-white text-[14px] font-semibold tracking-[-0.56px] rounded-[26px] border-2 border-white shadow-md transition-colors ${
                 loading ? 'bg-[#9490f0] cursor-not-allowed' : 'bg-[#5B52E7] hover:bg-[#4842c7] cursor-pointer'
-              }`}
-            >
+              }`}>
               {loading ? "Generating..." : "Open PDF summary"}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Click outside to close dropdowns */}
       {(eventTypeOpen || guestTypeOpen) && (
         <div className="fixed inset-0 z-40" onClick={() => { setEventTypeOpen(false); setGuestTypeOpen(false); }} />
       )}
-
     </div>
   );
 }
