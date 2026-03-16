@@ -192,11 +192,14 @@ async function buildPDF(m: any, eventType: string, guestType: string, budget: st
   if (m.cityReason && m.recommendedCity) {
     if (y > 255) { doc.addPage(); y = 22; }
     doc.setFillColor(...purpleLight); doc.setDrawColor(...purple); doc.setLineWidth(0.4);
+    const cityLines = doc.splitTextToSize(m.cityReason, cW - 10);
+    const cityBoxH = 10 + cityLines.length * 5.5;
     doc.roundedRect(mg, y, cW, 15, 3, 3, "FD");
     doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(...purple);
     doc.text(`Recommended destination: ${m.recommendedCity}`, mg + 5, y + 6.5);
     doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(...mid);
-    doc.text(m.cityReason, mg + 5, y + 11.5);
+    const cityLines = doc.splitTextToSize(m.cityReason, cW - 10);
+    doc.text(cityLines, mg + 5, y + 11.5);
     y += 21;
   }
 
@@ -249,13 +252,13 @@ Return this exact JSON:
   "costPerPerson": "per person range e.g. $2,100 – $2,350",
   "recommendedCity": "best city name",
   "cityReason": "one sentence why this city fits",
-  "breakdown": [
-    {"category": "Accommodation", "estimate": "string", "notes": "brief note"},
-    {"category": "Venue & Meeting Rooms", "estimate": "string", "notes": "brief note"},
-    {"category": "Food & Beverage", "estimate": "string", "notes": "brief note"},
-    {"category": "Activities & Team Building", "estimate": "string", "notes": "brief note"},
-    {"category": "Travel & Transport", "estimate": "string", "notes": "brief note"},
-    {"category": "Contingency (10%)", "estimate": "string", "notes": "brief note"}
+  "breakdown": 
+    {"category": "Accommodation", "estimate": "string", "notes": "<1 sentance brief note"},
+    {"category": "Venue & Meeting Rooms", "estimate": "string", "notes": "<1 sentance brief note"},
+    {"category": "Food & Beverage", "estimate": "string", "notes": "<1 sentance brief note"},
+    {"category": "Activities & Team Building", "estimate": "string", "notes": "<1 sentance brief note"},
+    {"category": "Travel & Transport", "estimate": "string", "notes": "<1 sentance brief note"},
+    {"category": "Contingency (10%)", "estimate": "string", "notes": "<1 sentance brief note"}
   ],
   "executiveSummary": "3-4 sentences: what the event is, who attends, why it matters",
   "businessCase": "3-4 sentences: ROI, retention, productivity, team cohesion stats",
