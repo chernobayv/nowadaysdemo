@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 
 const imgImage4 = "https://www.nowadays.ai/_next/static/media/nowadays-icon.5c8c330e.png";
 
@@ -584,6 +585,7 @@ Return this exact JSON structure:
       {(eventTypeOpen || guestTypeOpen) && (
         <div className="fixed inset-0 z-40" onClick={() => { setEventTypeOpen(false); setGuestTypeOpen(false); }} />
       )}
+      <Analytics />
     </div>
   );
 }
