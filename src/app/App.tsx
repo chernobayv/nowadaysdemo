@@ -5,7 +5,7 @@ const imgImage4 = "https://www.nowadays.ai/_next/static/media/nowadays-icon.5c8c
 
 // Gemini key from Vercel environment variable
 const GEMINI_KEY = import.meta.env.VITE_GEMINI_KEY as string;
-const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
 const eventTypeOptions = [
   "Team Offsite",
