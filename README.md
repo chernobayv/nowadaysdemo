@@ -1,7 +1,7 @@
 
-  # Make Dropdowns Interactive
-
-  This is a code bundle for Make Dropdowns Interactive. The original project is available at https://www.figma.com/design/GzZ3yKG4ADcUep12T9jqTC/Make-Dropdowns-Interactive.
+  # Nowadays Demo
+  demo site: https://nowadaysdemo.vercel.app/
+  figma: https://www.figma.com/design/WDZ3rCsOymQuJrJWkE8tBg/nowadays-application---event-approval-planner?node-id=3-8&t=vdDk0ciFXqf5dh2X-1
 
   ## Running the code
 
