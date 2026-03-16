@@ -52,7 +52,7 @@ async function buildPDF(m: any, eventType: string, guestType: string, budget: st
   const lightGray: [number, number, number] = [249, 250, 251];
   const borderGray: [number, number, number] = [229, 231, 235];
 
-  // ── Header bar ──────────────────────────────────────────────────────────────
+  // ── Header ─────────────────────────────────────────────────────────────────
   doc.setFillColor(...purple);
   doc.rect(0, 0, W, 24, "F");
   doc.setTextColor(...white);
@@ -66,11 +66,10 @@ async function buildPDF(m: any, eventType: string, guestType: string, budget: st
   doc.text(today, W - mg, 15, { align: "right" });
   y = 36;
 
-  // ── Title ───────────────────────────────────────────────────────────────────
+  // ── Title ──────────────────────────────────────────────────────────────────
   doc.setTextColor(...ink);
   doc.setFontSize(19);
   doc.setFont("helvetica", "bold");
-  // Wrap long titles
   const titleLines = doc.splitTextToSize(m.eventTitle || "Event Approval Memo", cW);
   doc.text(titleLines, mg, y);
   y += titleLines.length * 7;
@@ -85,7 +84,7 @@ async function buildPDF(m: any, eventType: string, guestType: string, budget: st
   doc.line(mg, y, W - mg, y);
   y += 9;
 
-  // ── Metric cards ────────────────────────────────────────────────────────────
+  // ── Metric cards ───────────────────────────────────────────────────────────
   const mW = (cW - 9) / 4;
   [
     { label: "Budget", val: `$${budget}` },
@@ -105,13 +104,12 @@ async function buildPDF(m: any, eventType: string, guestType: string, budget: st
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...ink);
-    // Wrap metric value if too long
     const valLines = doc.splitTextToSize(c.val, mW - 4);
     doc.text(valLines[0] || c.val, x + mW / 2, y + 12.5, { align: "center" });
   });
   y += 24;
 
-  // ── Section helper (full wrapping) ──────────────────────────────────────────
+  // ── Section helper ─────────────────────────────────────────────────────────
   function section(title: string, body: string) {
     if (y > 252) { doc.addPage(); y = 22; }
     doc.setFontSize(8);
@@ -139,33 +137,38 @@ async function buildPDF(m: any, eventType: string, guestType: string, budget: st
   section("Business Case & ROI", m.businessCase || "");
   section("Goals & Purpose", goals);
 
-  // ── Budget breakdown table (with wrapping notes) ─────────────────────────
+  // ── Budget breakdown table ─────────────────────────────────────────────────
   if (y > 195) { doc.addPage(); y = 22; }
   doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(...purple);
   doc.text("BUDGET BREAKDOWN", mg, y); y += 4;
   doc.setDrawColor(...purple); doc.setLineWidth(0.35);
   doc.line(mg, y, mg + 28, y); y += 6;
 
+  // Column widths — notes column is narrow to force short text
+  const colCat = 58;
+  const colEst = 35;
+  const colNotes = cW - colCat - colEst - 6;
+
   // Table header
   doc.setFillColor(...purple); doc.rect(mg, y, cW, 7.5, "F");
   doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(...white);
   doc.text("Category", mg + 3, y + 5);
-  doc.text("Estimate", mg + 85, y + 5);
-  doc.text("Notes", mg + 118, y + 5);
+  doc.text("Estimate", mg + colCat + 5, y + 5);
+  doc.text("Notes", mg + colCat + colEst + 5, y + 5);
   y += 7.5;
-
-  const colCat = 55;
-  const colEst = 28;
-  const colNotes = cW - colCat - colEst - 6;
 
   (m.breakdown || []).forEach((row: any, i: number) => {
     if (y > 265) { doc.addPage(); y = 22; }
 
-    // Pre-calculate wrapped lines to get row height
     doc.setFontSize(8.5);
-    const catLines = doc.splitTextToSize(row.category || "", colCat);
-    const estLines = doc.splitTextToSize(row.estimate || "", colEst);
-    const noteLines = doc.splitTextToSize(row.notes || "", colNotes);
+    // Truncate notes to max 6 words as a safety net on top of the prompt
+    const rawNote = (row.notes || "");
+    const words = rawNote.split(" ");
+    const shortNote = words.length > 7 ? words.slice(0, 7).join(" ") + "…" : rawNote;
+
+    const catLines = doc.splitTextToSize(row.category || "", colCat - 4);
+    const estLines = doc.splitTextToSize(row.estimate || "", colEst - 4);
+    const noteLines = doc.splitTextToSize(shortNote, colNotes - 4);
     const maxLines = Math.max(catLines.length, estLines.length, noteLines.length);
     const rowH = Math.max(7, maxLines * 5 + 4);
 
@@ -176,10 +179,10 @@ async function buildPDF(m: any, eventType: string, guestType: string, budget: st
     doc.text(catLines, mg + 3, y + 5);
 
     doc.setFont("helvetica", "bold"); doc.setTextColor(...purple);
-    doc.text(estLines, mg + 85, y + 5);
+    doc.text(estLines, mg + colCat + 5, y + 5);
 
     doc.setFont("helvetica", "normal"); doc.setTextColor(...mid);
-    doc.text(noteLines, mg + 118, y + 5);
+    doc.text(noteLines, mg + colCat + colEst + 5, y + 5);
 
     y += rowH;
   });
@@ -188,33 +191,28 @@ async function buildPDF(m: any, eventType: string, guestType: string, budget: st
   section("Recommendation & Next Steps", m.recommendation || "");
   section("Why Nowadays", m.nowadaysValue || "Nowadays handles all venue sourcing, negotiations, and vendor management — saving your team weeks of back-and-forth. Our platform typically saves clients 15–20% on total event costs through exclusive partnerships and smart negotiation.");
 
-  // ── City recommendation box ──────────────────────────────────────────────
+  // ── City callout ───────────────────────────────────────────────────────────
   if (m.cityReason && m.recommendedCity) {
     if (y > 255) { doc.addPage(); y = 22; }
-
     doc.setFontSize(8.5);
     const cityReasonLines = doc.splitTextToSize(m.cityReason, cW - 12);
     const cityBoxH = 10 + cityReasonLines.length * 5.5;
-
     doc.setFillColor(...purpleLight);
     doc.setDrawColor(...purple);
     doc.setLineWidth(0.4);
     doc.roundedRect(mg, y, cW, cityBoxH, 3, 3, "FD");
-
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...purple);
     doc.text(`Recommended destination: ${m.recommendedCity}`, mg + 5, y + 6.5);
-
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     doc.setTextColor(...mid);
     doc.text(cityReasonLines, mg + 5, y + 12);
-
     y += cityBoxH + 5;
   }
 
-  // ── Disclaimer ────────────────────────────────────────────────────────────
+  // ── Disclaimer ─────────────────────────────────────────────────────────────
   if (y > 265) { doc.addPage(); y = 22; }
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "italic");
@@ -227,7 +225,7 @@ async function buildPDF(m: any, eventType: string, guestType: string, budget: st
     y += 4.5;
   });
 
-  // ── Footer on every page ─────────────────────────────────────────────────
+  // ── Footer ─────────────────────────────────────────────────────────────────
   const pages = doc.internal.getNumberOfPages();
   for (let i = 1; i <= pages; i++) {
     doc.setPage(i);
@@ -262,12 +260,17 @@ export default function App() {
     setLoading(true);
     setError("");
 
-    const prompt = `You are a corporate event planning expert. Generate a professional executive approval memo that would convince a CFO or exec to approve this event budget. Be persuasive, specific, and data-driven. Return ONLY valid JSON, no markdown, no extra text.
+    // Lightly enhance goals to sound more professional
+    const enhancedGoals = goals.trim().length < 30
+      ? `${goals.trim()} — fostering team alignment, strengthening cross-functional relationships, and driving measurable business outcomes`
+      : goals.trim().charAt(0).toUpperCase() + goals.trim().slice(1) + (goals.trim().endsWith('.') ? '' : '.');
+
+    const prompt = `You are a corporate event planning expert. Generate a professional executive approval memo that would convince a CFO or exec to approve this event budget. Be persuasive, specific, and data-driven. Return ONLY valid JSON with no markdown, no extra text, no explanation.
 
 Event Type: ${eventType}
 Guest Type: ${guestType || "Internal team"}
 Budget: $${budget}
-Goals: ${goals}
+Goals: ${enhancedGoals}
 
 Return this exact JSON structure:
 {
@@ -278,17 +281,17 @@ Return this exact JSON structure:
   "recommendedCity": "specific best city",
   "cityReason": "one compelling sentence explaining why this city is ideal for this event type and group",
   "breakdown": [
-    {"category": "Accommodation", "estimate": "$X,XXX – $X,XXX", "notes": "one brief sentence"},
-    {"category": "Venue & Meeting Rooms", "estimate": "$X,XXX – $X,XXX", "notes": "one brief sentence"},
-    {"category": "Food & Beverage", "estimate": "$X,XXX – $X,XXX", "notes": "one brief sentence"},
-    {"category": "Activities & Team Building", "estimate": "$X,XXX – $X,XXX", "notes": "one brief sentence"},
-    {"category": "Travel & Transport", "estimate": "$X,XXX – $X,XXX", "notes": "one brief sentence"},
-    {"category": "Contingency (10%)", "estimate": "$X,XXX", "notes": "one brief sentence"}
+    {"category": "Accommodation", "estimate": "$X,XXX – $X,XXX", "notes": "max 5 words e.g. 3-night hotel block"},
+    {"category": "Venue & Meeting Rooms", "estimate": "$X,XXX – $X,XXX", "notes": "max 5 words e.g. full-day boardroom rental"},
+    {"category": "Food & Beverage", "estimate": "$X,XXX – $X,XXX", "notes": "max 5 words e.g. catered meals included"},
+    {"category": "Activities & Team Building", "estimate": "$X,XXX – $X,XXX", "notes": "max 5 words e.g. half-day group activity"},
+    {"category": "Travel & Transport", "estimate": "$X,XXX – $X,XXX", "notes": "max 5 words e.g. flights and ground transport"},
+    {"category": "Contingency (10%)", "estimate": "$X,XXX", "notes": "max 5 words e.g. buffer for overruns"}
   ],
-  "executiveSummary": "3-4 persuasive sentences covering what the event is, who attends, the strategic importance, and expected outcomes.",
-  "businessCase": "3-4 sentences with specific ROI framing: cite research where possible (e.g. Gallup, McKinsey) on team engagement, retention savings, and productivity gains from in-person collaboration.",
-  "recommendation": "2-3 clear sentences: state the approval ask, outline immediate next steps if approved, and note the planning timeline.",
-  "nowadaysValue": "2 sentences on how using Nowadays for sourcing and negotiation saves time and reduces costs versus planning independently."
+  "executiveSummary": "3-4 persuasive sentences: what the event is, who attends, strategic importance, expected outcomes.",
+  "businessCase": "3-4 sentences citing specific research where relevant (e.g. Gallup, McKinsey) on team engagement, retention savings, and productivity gains from in-person collaboration.",
+  "recommendation": "2-3 sentences: state the approval ask clearly, outline immediate next steps if approved, note the planning timeline.",
+  "nowadaysValue": "2 sentences on how using Nowadays for sourcing and negotiation saves significant time and reduces costs vs. planning independently."
 }`;
 
     try {
@@ -306,7 +309,7 @@ Return this exact JSON structure:
       }
       const data = await res.json();
       const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-      await buildPDF(extractJSON(raw), eventType, guestType, budget, goals);
+      await buildPDF(extractJSON(raw), eventType, guestType, budget, enhancedGoals);
     } catch (err: any) {
       setError("Error: " + (err.message || "Something went wrong. Please try again."));
     } finally {
