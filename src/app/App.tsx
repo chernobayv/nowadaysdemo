@@ -234,7 +234,7 @@ export default function App() {
     setLoading(true);
     setError("");
 
-    const prompt = `You are a corporate event planning expert at Nowadays. Generate a professional executive approval memo. Return ONLY valid JSON, no markdown.
+    const prompt = `You are a corporate event planning expert at Nowadays which is a b2b travel planning company. Generate a professional executive approval memo. Return ONLY valid JSON, no markdown. Make sure to make it convincing and include keywords that would make an exec want to invest in this trip. Make sure to fill wither 1 page or two pages, no moew. fill it exactly or mostly to make it look professional.
 
 Event Type: ${eventType}
 Guest Type: ${guestType || "Internal team"}
